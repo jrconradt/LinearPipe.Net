@@ -10,4 +10,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="LinearPipe.Net.Tests" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
 </Project>
