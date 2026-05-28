@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/LinearPipe.Net/LinearPipe.Net.csproj" />
+    <Project Path="src/LinearPipe.Net.Tests/LinearPipe.Net.Tests.csproj" />
+  </Folder>
+</Solution>
