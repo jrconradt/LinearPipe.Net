@@ -13,6 +13,9 @@ public static unsafe partial class Tsc
     [LibraryImport("libc", SetLastError = true)]
     private static partial nint mmap(nint addr, nuint length, int prot, int flags, int fd, nint offset);
 
+    [LibraryImport("libc", SetLastError = true)]
+    private static partial int mprotect(nint addr, nuint length, int prot);
+
     private static readonly byte[] BeginCode =
     {
         0x0f, 0xae, 0xe8,
@@ -51,11 +54,19 @@ public static unsafe partial class Tsc
     {
         nint page = mmap(0,
                          4096,
-                         PROT_READ | PROT_WRITE | PROT_EXEC,
+                         PROT_READ | PROT_WRITE,
                          MAP_PRIVATE | MAP_ANONYMOUS,
                          -1,
                          0);
+        if (page == -1)
+        {
+            throw new InvalidOperationException($"Tsc: mmap failed (errno {Marshal.GetLastSystemError()}).");
+        }
         Marshal.Copy(code, 0, page, code.Length);
+        if (mprotect(page, 4096, PROT_READ | PROT_EXEC) != 0)
+        {
+            throw new InvalidOperationException($"Tsc: mprotect failed (errno {Marshal.GetLastSystemError()}).");
+        }
         return page;
     }
 }

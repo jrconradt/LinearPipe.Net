@@ -1,17 +1,19 @@
-namespace LinearPipe;
+namespace LinearPipe.Benchmarks;
 
-public interface IBenchmarkSubject
+internal interface IBenchmarkSubject
 {
     void Run();
 }
 
-public sealed class Benchmark<T> where T : IBenchmarkSubject
+internal sealed class Benchmark<T> where T : struct, IBenchmarkSubject
 {
     private readonly int _warmup;
     private readonly int _measured;
 
     public Benchmark(int warmup, int measured)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(warmup);
+        ArgumentOutOfRangeException.ThrowIfLessThan(measured, 1);
         _warmup = warmup;
         _measured = measured;
     }
@@ -36,7 +38,7 @@ public sealed class Benchmark<T> where T : IBenchmarkSubject
     }
 }
 
-public readonly struct BenchmarkResult
+internal readonly struct BenchmarkResult
 {
     public readonly int Iterations;
     public readonly long MinTicks;
