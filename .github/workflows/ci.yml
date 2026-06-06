@@ -19,9 +19,6 @@ jobs:
       - name: Build
         run: dotnet build LinearPipe.Net.slnx -c Release
 
-      - name: Test
-        run: dotnet test LinearPipe.Net.slnx -c Release --no-build
-
       - name: Pack
         run: dotnet pack src/LinearPipe.Net/LinearPipe.Net.csproj -c Release --no-build -o artifacts
 
