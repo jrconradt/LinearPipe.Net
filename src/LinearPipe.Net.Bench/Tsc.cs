@@ -1,6 +1,7 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace LinearPipe;
+namespace LinearPipe.Bench;
 
 public static unsafe partial class Tsc
 {
@@ -40,6 +41,8 @@ public static unsafe partial class Tsc
     private static readonly delegate* unmanaged[Cdecl, SuppressGCTransition]<ulong> EndFn =
         (delegate* unmanaged[Cdecl, SuppressGCTransition]<ulong>)Load(EndCode);
 
+    public static readonly double TicksPerNanosecond = Calibrate();
+
     public static ulong Begin()
     {
         return BeginFn();
@@ -48,6 +51,21 @@ public static unsafe partial class Tsc
     public static ulong End()
     {
         return EndFn();
+    }
+
+    private static double Calibrate()
+    {
+        long swFreq = Stopwatch.Frequency;
+        long swTarget = Stopwatch.GetTimestamp() + swFreq / 50;
+        long swStart = Stopwatch.GetTimestamp();
+        ulong tscStart = BeginFn();
+        while (Stopwatch.GetTimestamp() < swTarget)
+        {
+        }
+        ulong tscEnd = EndFn();
+        long swEnd = Stopwatch.GetTimestamp();
+        double seconds = (swEnd - swStart) / (double)swFreq;
+        return (tscEnd - tscStart) / seconds / 1_000_000_000.0;
     }
 
     private static nint Load(byte[] code)

@@ -1,11 +1,11 @@
-namespace LinearPipe.Benchmarks;
+namespace LinearPipe.Bench;
 
-internal interface IBenchmarkSubject
+public interface IBenchmarkSubject
 {
     void Run();
 }
 
-internal sealed class Benchmark<T> where T : struct, IBenchmarkSubject
+public sealed class Benchmark<T> where T : unmanaged, IBenchmarkSubject
 {
     private readonly int _warmup;
     private readonly int _measured;
@@ -38,31 +38,32 @@ internal sealed class Benchmark<T> where T : struct, IBenchmarkSubject
     }
 }
 
-internal readonly struct BenchmarkResult
+public readonly struct BenchmarkResult
 {
     public readonly int Iterations;
-    public readonly long MinTicks;
-    public readonly long MedianTicks;
-    public readonly long MaxTicks;
+    public readonly double MinNanos;
+    public readonly double MedianNanos;
+    public readonly double MaxNanos;
 
     public BenchmarkResult(int iterations,
-                           long minTicks,
-                           long medianTicks,
-                           long maxTicks)
+                           double minNanos,
+                           double medianNanos,
+                           double maxNanos)
     {
         Iterations = iterations;
-        MinTicks = minTicks;
-        MedianTicks = medianTicks;
-        MaxTicks = maxTicks;
+        MinNanos = minNanos;
+        MedianNanos = medianNanos;
+        MaxNanos = maxNanos;
     }
 
     public static BenchmarkResult FromSamples(long[] samples)
     {
         Array.Sort(samples);
         int n = samples.Length;
+        double perNano = Tsc.TicksPerNanosecond;
         return new BenchmarkResult(n,
-                                   samples[0],
-                                   samples[n / 2],
-                                   samples[n - 1]);
+                                   samples[0] / perNano,
+                                   samples[n / 2] / perNano,
+                                   samples[n - 1] / perNano);
     }
 }

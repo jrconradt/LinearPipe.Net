@@ -15,5 +15,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\LinearPipe.Net\LinearPipe.Net.csproj" />
+    <ProjectReference Include="..\LinearPipe.Net.Bench\LinearPipe.Net.Bench.csproj" />
   </ItemGroup>
 </Project>
