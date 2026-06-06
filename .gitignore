@@ -406,6 +406,8 @@ FodyWeavers.xsd
 *.sln.iml
 .idea/
 
+.claude/
+
 ##
 ## Visual studio for Mac
 ##
@@ -483,3 +485,6 @@ $RECYCLE.BIN/
 
 # ABC tool history
 abc.history
+
+# claude
+.claude/
