@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Description>Memory-mapped, chunk-disjoint linear data-plane pipeline — wait-free per-chunk SIMD transform via unmanaged function pointer, with non-temporal stores. Linux x86-64 + AVX-512F.</Description>
     <PackageTags>simd;avx512;memory-mapped;pipeline;performance;numa;non-temporal;dotnet</PackageTags>
   </PropertyGroup>
   <ItemGroup>
