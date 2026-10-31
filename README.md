@@ -18,11 +18,11 @@ The operation is a struct type parameter, so `Apply` is inlined into the pipelin
 
 Workers form one pool per process and run one `Flow` at a time. Worker `i` is pinned to core `i` and belongs to NUMA node `i % 2`, matching hosts that number cores alternately across two sockets. The source is split into one page-aligned region per node with workers, lower half to node 0; each node's region is dispatched only to that node's workers, and each node's half of the sink is populated from that node. Placing the source's own pages on the matching nodes is the caller's job. Work is handed out in 16 MiB blocks, so a source smaller than 16 MiB per node does not occupy every worker.
 
-Requires Linux on x86-64 with AVX512F. Each worker issues `sfence` after every block, so every store is globally visible by the time `Flow` completes. There is no fallback store path and no startup check: on a host without AVX512F the first store throws `PlatformNotSupportedException` on a worker thread, which ends the process. Mapping, worker placement and page population go through `libc` (`mmap`, `sched_setaffinity`, `madvise` with `MADV_POPULATE_READ`/`MADV_POPULATE_WRITE`).
+Every store is globally visible by the time `Flow` completes. Requires Linux on x86-64 with AVX-512F; there is no fallback path and no startup check, so on a host without AVX-512F the first store throws `PlatformNotSupportedException` on a worker thread, which ends the process.
 
 ## Benchmarking
 
-`LinearPipe.Net.Bench` is a library harness with no entry point. `Benchmark<T> where T : unmanaged, IBenchmarkSubject` runs `warmup` then `measured` iterations of `T.Run()`, timing each with `Tsc`: an `RDTSC`/`RDTSCP` bracket JIT-loaded into an `R|X` page and calibrated to nanoseconds against the invariant TSC. `BenchmarkResult` reports min/median/max nanoseconds. `PipelineSubject<TOp>` benchmarks `Pipeline<TOp>.Flow` through a `GCHandle` bridge; `PipelineBenchmarkTests.Benchmark_Flow_Reports_Nanoseconds` is a worked example. The harness is also Linux-x86-64-only (its `Tsc` stubs are raw `RDTSC` machine code).
+`LinearPipe.Net.Bench` is a timing harness with no entry point. `Benchmark<T> where T : unmanaged, IBenchmarkSubject` runs `warmup` then `measured` iterations of `T.Run()`, times each with an `RDTSC`/`RDTSCP` bracket calibrated to nanoseconds, and reports min/median/max. `PipelineSubject<TOp>` wraps a `Pipeline<TOp>`; `PipelineBenchmarkTests.Benchmark_Flow_Reports_Nanoseconds` is a worked example.
 
 ## Build & test
 
@@ -33,7 +33,7 @@ dotnet test LinearPipe.Net.slnx
 
 ## Status
 
-Active development; API unstable. Used as the streaming substrate behind [FWHT.Net](https://github.com/jrconradt/FWHT.Net)'s benchmark. Linux on x86-64 with AVX-512F is required — there is no fallback store path.
+Active development; API unstable.
 
 ## License
 
