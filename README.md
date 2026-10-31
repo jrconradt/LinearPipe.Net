@@ -2,15 +2,27 @@
 
 [![CI](https://github.com/jrconradt/LinearPipe.Net/actions/workflows/ci.yml/badge.svg)](https://github.com/jrconradt/LinearPipe.Net/actions/workflows/ci.yml) ![.NET](https://img.shields.io/badge/.NET-10-512BD4) ![Arch](https://img.shields.io/badge/Linux_x86--64-AVX--512F-orange) [![License](https://img.shields.io/badge/License-Apache_2.0-blue)](LICENSE)
 
-A memory-mapped, chunk-disjoint linear data-plane pipeline. Source and sink are mmap'd; the chunk space is partitioned into disjoint spans across worker threads; each 64-byte chunk is loaded, run through a per-chunk SIMD transform, and written to the sink with a non-temporal store. Wait-freedom is structural — workers never share a chunk, so no locks or atomics are needed on the hot path.
+A memory-mapped linear data-plane pipeline. You supply a source file, a worker count, a sink file and an operation; the pipeline streams the source through the operation one 64-byte `Vector512<ulong>` chunk at a time and writes each result to the sink with a non-temporal store.
 
-`new LinearPipeline(sourcePath, sinkPath, transform, consts, options)` then `Flow()`. The transform is an unmanaged function pointer — `delegate* unmanaged[Cdecl, SuppressGCTransition]<ulong*, byte*, byte*, void>` — called once per 64-byte chunk with (output, input, consts) pointers, so there is no managed dispatch on the hot path. `consts` points at baked constants the transform reads (may be null). `PipelineOptions` carries the worker count and per-worker core affinity — either a `AffinityBase`/`AffinityStride` arithmetic map or an explicit `AffinityCores` array for NUMA-local placement.
+```csharp
+readonly struct Negate : IOperation
+{
+    public Vector512<ulong> Apply(Vector512<ulong> chunk) => ~chunk;
+}
 
-Requires Linux on x86-64 with AVX512F. The sink uses `vmovntdq` non-temporal stores and each worker issues its own `sfence` before exiting, so every store is globally visible by the time `Flow()` joins; the constructor throws `PlatformNotSupportedException` when AVX512F is absent, as there is no fallback store path. Worker placement and page population go through `libc` (`sched_setaffinity`, `madvise` with `MADV_POPULATE_READ`/`MADV_POPULATE_WRITE`).
+using Pipeline<Negate> pipeline = new Pipeline<Negate>(sourcePath, workers, sinkPath, new Negate());
+await pipeline.Flow();
+```
+
+The operation is a struct type parameter, so `Apply` is inlined into the pipeline's chunk loop; constants it needs live in the struct's fields. Construct the pipeline once and flow as often as needed: construction maps both files, and the first `Flow` places the sink's pages.
+
+Workers form one pool per process and run one `Flow` at a time. Worker `i` is pinned to core `i` and belongs to NUMA node `i % 2`, matching hosts that number cores alternately across two sockets. The source is split into one page-aligned region per node with workers, lower half to node 0; each node's region is dispatched only to that node's workers, and each node's half of the sink is populated from that node. Placing the source's own pages on the matching nodes is the caller's job. Work is handed out in 16 MiB blocks, so a source smaller than 16 MiB per node does not occupy every worker.
+
+Requires Linux on x86-64 with AVX512F. Each worker issues `sfence` after every block, so every store is globally visible by the time `Flow` completes. There is no fallback store path and no startup check: on a host without AVX512F the first store throws `PlatformNotSupportedException` on a worker thread, which ends the process. Mapping, worker placement and page population go through `libc` (`mmap`, `sched_setaffinity`, `madvise` with `MADV_POPULATE_READ`/`MADV_POPULATE_WRITE`).
 
 ## Benchmarking
 
-`LinearPipe.Net.Bench` is a library harness with no entry point. `Benchmark<T> where T : unmanaged, IBenchmarkSubject` runs `warmup` then `measured` iterations of `T.Run()`, timing each with `Tsc`: an `RDTSC`/`RDTSCP` bracket JIT-loaded into an `R|X` page and calibrated to nanoseconds against the invariant TSC. `BenchmarkResult` reports min/median/max nanoseconds. `PipelineSubject` benchmarks `LinearPipeline.Flow()` through a `GCHandle` bridge; `LinearPipelineBenchmarkTests.Benchmark_Flow_Reports_Nanoseconds` is a worked example. The harness is also Linux-x86-64-only (its `Tsc` stubs are raw `RDTSC` machine code).
+`LinearPipe.Net.Bench` is a library harness with no entry point. `Benchmark<T> where T : unmanaged, IBenchmarkSubject` runs `warmup` then `measured` iterations of `T.Run()`, timing each with `Tsc`: an `RDTSC`/`RDTSCP` bracket JIT-loaded into an `R|X` page and calibrated to nanoseconds against the invariant TSC. `BenchmarkResult` reports min/median/max nanoseconds. `PipelineSubject<TOp>` benchmarks `Pipeline<TOp>.Flow` through a `GCHandle` bridge; `PipelineBenchmarkTests.Benchmark_Flow_Reports_Nanoseconds` is a worked example. The harness is also Linux-x86-64-only (its `Tsc` stubs are raw `RDTSC` machine code).
 
 ## Build & test
 
