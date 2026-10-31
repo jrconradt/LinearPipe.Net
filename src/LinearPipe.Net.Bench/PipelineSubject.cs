@@ -1,21 +1,20 @@
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace LinearPipe.Bench;
 
-public readonly struct PipelineSubject : IBenchmarkSubject
+public readonly struct PipelineSubject<TOp> : IBenchmarkSubject
+    where TOp : struct, IOperation
 {
     private readonly GCHandle _pipeline;
 
-    public PipelineSubject(LinearPipeline pipeline)
+    public PipelineSubject(Pipeline<TOp> pipeline)
     {
         _pipeline = GCHandle.Alloc(pipeline);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Run()
     {
-        ((LinearPipeline)_pipeline.Target!).Flow();
+        ((Pipeline<TOp>)_pipeline.Target!).Flow().GetAwaiter().GetResult();
     }
 
     public void Free()
